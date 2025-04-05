@@ -14,7 +14,7 @@ import java.util.Map;
 @Service
 public class ChatBotServiceImpl implements ChatbotService {
 
-    private final String GEMINI_API_KEY = "AIzaSyAuBOWRi_hsbK9nmjVK32-Hk9iJIB8hBV8"; // Ideally from env
+    private final String GEMINI_API_KEY = "AIzaSyAuBOWRi_hsbK9nmjVK32-Hk9iJIB8hBV8"; // Use environment variable
 
     private double convertToDouble(Object value) {
         if (value instanceof Number) {
@@ -31,23 +31,16 @@ public class ChatBotServiceImpl implements ChatbotService {
     }
 
     public CoinDto makeApiRequest(String currencyName) throws Exception {
-        System.out.println("[DEBUG] Entered makeApiRequest() with currencyName: " + currencyName);
-
         String url = "https://api.coingecko.com/api/v3/coins/" + currencyName.toLowerCase();
-        System.out.println("[DEBUG] Fetching data from CoinGecko: " + url);
-
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<Map> responseBody = restTemplate.getForEntity(url, Map.class);
 
         if (responseBody != null && responseBody.getBody() != null) {
             Map<String, Object> body = responseBody.getBody();
-            System.out.println("[DEBUG] CoinGecko response: " + body);
-
             Map<String, Object> image = (Map<String, Object>) body.get("image");
             Map<String, Object> marketData = (Map<String, Object>) body.get("market_data");
 
             if (marketData == null) {
-                System.out.println("[ERROR] Market data not found in response");
                 throw new Exception("Market data not found in API response");
             }
 
@@ -75,23 +68,18 @@ public class ChatBotServiceImpl implements ChatbotService {
             coinDto.setCirculatingSupply(convertToDouble(marketData.get("circulating_supply")));
             coinDto.setTotalSupply(convertToDouble(marketData.get("total_supply")));
 
-            System.out.println("[DEBUG] Parsed CoinDto: " + coinDto);
             return coinDto;
         }
-
-        System.out.println("[ERROR] Coin not found or response body is null");
         throw new Exception("Coin not found");
     }
 
     public FunctionResponse getFunctionRespone(String promptBody) {
-        System.out.println("[DEBUG] Entered getFunctionRespone() with prompt: " + promptBody);
-
         String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY;
-        System.out.println("[DEBUG] Gemini API URL: " + GEMINI_API_URL);
 
         JSONObject requestBodyJson = new JSONObject()
                 .put("contents", new JSONArray()
                         .put(new JSONObject()
+//                                .put("role", "user")
                                 .put("parts", new JSONArray()
                                         .put(new JSONObject()
                                                 .put("text", promptBody)
@@ -110,61 +98,62 @@ public class ChatBotServiceImpl implements ChatbotService {
                                                         .put("properties", new JSONObject()
                                                                 .put("currencyName", new JSONObject()
                                                                         .put("type", "string")
-                                                                        .put("description", "The currency name, id, symbol."))
+                                                                        .put("description", "The currency name, " + "id, symbol."))
                                                                 .put("currencyDate", new JSONObject()
                                                                         .put("type", "string")
-                                                                        .put("description", "Currency date id, symbol. "))
+                                                                        .put("description", "Currency Data id" + "id, symbol. "))
                                                                 .put("currencyData", new JSONObject()
                                                                         .put("type", "string")
-                                                                        .put("description",  "Currency Data details..."))
-                                                        )
-                                                        .put("required", new JSONArray()
+                                                                        .put("description",  "Currency Data id, " +
+                                                                                "symbol, " +
+                                                                                "name, " +
+                                                                                "image, " +
+                                                                                "currentPrice, "+
+                                                                                "marketCap, " +
+                                                                                "marketCapRank, " +
+                                                                                "totalVolume, high24h, " +
+                                                                                "low24h , priceChange24h" +
+                                                                                "priceChangePercentage24h" +
+                                                                                "marketCapChangePercentage24h, " +
+                                                                                "totalSupply, "+
+                                                                                "circulatingSupply, "+
+                                                                                "ath, " +
+                                                                                "authChangePercentage, "+
+                                                                                "atl, "+
+                                                                                "atlData, lastUpdated"
+                                                                        )))
+                                                               .put("required", new JSONArray()
                                                                 .put("currencyName")
                                                                 .put("currencyData")
-                                                        )
+                                                               )
                                                 )
                                         )
                                 )
                         )
                 );
 
-        System.out.println("[DEBUG] Gemini Request Body: " + requestBodyJson.toString());
-
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> requestEntity = new HttpEntity<>(requestBodyJson.toString(), headers);
 
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            ResponseEntity<String> response = restTemplate.postForEntity(GEMINI_API_URL, requestEntity, String.class);
-            String responseBody = response.getBody();
-
-            System.out.println("[DEBUG] Gemini Response Status: " + response.getStatusCode());
-            System.out.println("[DEBUG] Gemini Response Body: " + responseBody);
-        } catch (Exception e) {
-            System.out.println("[ERROR] Error while calling Gemini API: " + e.getMessage());
-        }
-
-        System.out.println("[DEBUG] Exiting getFunctionRespone()");
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<String> response = restTemplate.postForEntity(GEMINI_API_URL, requestEntity, String.class);
+        String responseBody = response.getBody();
+        System.out.println("Gemini Response: " + responseBody);
         return null;
     }
 
+
     @Override
     public ApiResponse getCoinDetails(String promptBody) throws Exception {
-        System.out.println("[DEBUG] Entered getCoinDetails() with promptBody: " + promptBody);
-
         CoinDto coinDto = makeApiRequest(promptBody);
-        System.out.println("[DEBUG] CoinDto returned from makeApiRequest(): " + coinDto);
-
+        System.out.println("Coin Details: " + coinDto);
         getFunctionRespone(promptBody);
-        System.out.println("[DEBUG] Exiting getCoinDetails()");
         return null;
     }
 
     @Override
     public String simpleChat(String promptBody) {
-        System.out.println("[DEBUG] Entered simpleChat() with promptBody: " + promptBody);
-
         String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + GEMINI_API_KEY;
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.setContentType(MediaType.APPLICATION_JSON);
@@ -175,20 +164,10 @@ public class ChatBotServiceImpl implements ChatbotService {
                                 .put("parts", new JSONArray()
                                         .put(new JSONObject().put("text", promptBody)))));
 
-        System.out.println("[DEBUG] simpleChat Gemini Request Body: " + requestBodyJson.toString());
-
         HttpEntity<String> requestEntity = new HttpEntity<>(requestBodyJson.toString(), httpHeaders);
         RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<String> response = restTemplate.postForEntity(GEMINI_API_URL, requestEntity, String.class);
 
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(GEMINI_API_URL, requestEntity, String.class);
-            System.out.println("[DEBUG] simpleChat Gemini Response Status: " + response.getStatusCode());
-            System.out.println("[DEBUG] simpleChat Gemini Response Body: " + response.getBody());
-            System.out.println("[DEBUG] Exiting simpleChat()");
-            return response.getBody();
-        } catch (Exception e) {
-            System.out.println("[ERROR] Error in simpleChat(): " + e.getMessage());
-            return null;
-        }
+        return response.getBody();
     }
 }
